@@ -1,20 +1,24 @@
 package main
 
 import (
+	"crypto/x509"
 	"encoding/base64"
+	"encoding/pem"
+	"errors"
 	"fmt"
-	"math/rand"
-	"net/http"
-
 	"github.com/easonlin404/ksm"
 	"github.com/easonlin404/ksm/d"
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
+	"math/rand"
+	"net/http"
 )
 
 func main() {
 
 	r := gin.Default()
+	r.Use(cors.Default())
 
 	type SpcMessage struct {
 		Spc     string `json:"spc" binding:"required"`
@@ -35,12 +39,14 @@ func main() {
 		playback, err := base64.StdEncoding.DecodeString(spcMessage.Spc)
 		checkError(err)
 
+		pk, err := decryptKey([]byte(epk), []byte("PRIVATE_KEY_PASSPHRASE"))
+
 		k := &ksm.Ksm{
 			Pub:       pub,
-			Pri:       pri,
-			Rck:       RandomContentKey{}, // Use random content key for testing
-			DFunction: d.AppleD{},         // Use D function provided by Apple Inc.
-			Ask:       []byte{},
+			Pri:       string(pk),
+			Rck:       FixedContentKey{},
+			DFunction: d.CP_D_Function{}, // Use D function provided by Apple Inc.
+			Ask:       []byte{0x11,0x22,0x33,0x44,0x55,0x66,0x77,0x88,0x99,0x00,0xaa,0xbb,0xcc,0xdd,0xee,0xff},
 		}
 		ckc, err2 := k.GenCKC(playback)
 		checkError(err2)
@@ -59,6 +65,21 @@ func checkError(err error) {
 	if err != nil {
 		panic(err)
 	}
+}
+
+type FixedContentKey struct {
+}
+
+func (FixedContentKey) FetchContentKey(assetId []byte) ([]byte, []byte, error) {
+	key := []byte{0x3C,0x3C,0x3C,0x3C,0x3C,0x3C,0x3C,0x3C,0x3C,0x3C,0x3C,0x3C,0x3C,0x3C,0x3C,0x3C}
+	iv := []byte{0xD5,0xFB,0xD6,0xB8,0x2E,0xD9,0x3E,0x4E,0xF9,0x8A,0xE4,0x09,0x31,0xEE,0x33,0xB7}
+	return key, iv, nil
+}
+
+func (FixedContentKey) FetchContentKeyDuration(assetId []byte) (*ksm.CkcContentKeyDurationBlock, error) {
+	LeaseDuration := uint32(0)
+	RentalDuration := uint32(0)
+	return ksm.NewCkcContentKeyDurationBlock(LeaseDuration, RentalDuration, ksm.ContentKeyPersisted), nil
 }
 
 // Random content key
@@ -80,7 +101,22 @@ func (RandomContentKey) FetchContentKeyDuration(assetId []byte) (*ksm.CkcContent
 	LeaseDuration := rand.Uint32()  // The duration of the lease, if any, in seconds.
 	RentalDuration := rand.Uint32() // The duration of the rental, if any, in seconds.
 
-	return ksm.NewCkcContentKeyDurationBlock(LeaseDuration, RentalDuration), nil
+	return ksm.NewCkcContentKeyDurationBlock(LeaseDuration, RentalDuration, ksm.ContentKeyPersisted), nil
+}
+
+func decryptKey(epk []byte, passphrase []byte) (pk []byte, err error) {
+	block, rest := pem.Decode(epk)
+	if len(rest) > 0 {
+		return nil, errors.New("unexpected private key content")
+	}
+	der, err := x509.DecryptPEMBlock(block, passphrase)
+	if err != nil {
+		return nil, err
+	}
+	block.Bytes = der
+	block.Headers = map[string]string{}
+	pk = pem.EncodeToMemory(block)
+	return
 }
 
 var pub = `-----BEGIN CERTIFICATE-----
@@ -105,7 +141,7 @@ IMYU4NZSWhf5z+wYpjtzYxdoqynjvihqFdGqYDC2drzpLLhaCXZhZUq2D1mXoQaY
 6URsYkp6FRwIAx++KnIwE7Q3kK6s+5sRpKK4zZ0y0O9Z
 -----END CERTIFICATE-----`
 
-var pri = `-----BEGIN RSA PRIVATE KEY-----
+var epk = `-----BEGIN RSA PRIVATE KEY-----
 MIICXAIBAAKBgQC0XgENuL2ujKrsVJDsq1SxNL43N6792teqp3Siihi+mn6ZDdfc
 XP3FsPQNltBQkiWIJGPosoRjwDuAS1ntEEqJyc9PBnXhDEtsJo/O4fDy3umMrvCH
 Wt4R/rJ3O4b9m8V+QCO9hE0kFpRJZMt7RywmFdram01uARkGb7xOC3zPrQIDAQAB
