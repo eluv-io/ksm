@@ -144,12 +144,13 @@ func (k *Ksm) GenCKC(playback []byte) ([]byte, error) {
 
 	//ContenKeyDurationTllv,  This TLLV may be present only if the KSM has received an SPC with a Media Playback State TLLV.
 	if _, ok := ttlvs[tagMediaPlaybackState]; ok {
-		ckcDuraionTllv, err := genCkDurationTllv(assetID, k.Rck)
+		//ckcDuraionTllv, err := genCkDurationTllv(assetID, k.Rck)
+		offlineTllv, err := genCkcOfflineTllv(assetID, k.Rck)
 		if err != nil {
 			return nil, err
 		}
-
-		ckcPayload = append(ckcPayload, ckcDuraionTllv...)
+		//ckcPayload = append(ckcPayload, ckcDuraionTllv...)
+		ckcPayload = append(ckcPayload, offlineTllv...)
 	}
 
 	enCkcPayload, err := encryptCkcPayload(encryptedArSeed, ckcDataIv, ckcPayload)
@@ -167,6 +168,14 @@ func genCkDurationTllv(assetID []byte, key ContentKey) ([]byte, error) {
 		return nil, err
 	}
 	return CkcContentKeyDurationBlock.Serialize()
+}
+
+func genCkcOfflineTllv(assetID []byte, key ContentKey) ([]byte, error) {
+	tllv, err := key.FetchOfflineKey(assetID)
+	if err != nil {
+		return nil, err
+	}
+	return tllv.Serialize()
 }
 
 // DebugCKC debbug ckcplayback content

@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/binary"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -80,6 +81,14 @@ func (FixedContentKey) FetchContentKeyDuration(assetId []byte) (*ksm.CkcContentK
 	LeaseDuration := uint32(0)
 	RentalDuration := uint32(0)
 	return ksm.NewCkcContentKeyDurationBlock(LeaseDuration, RentalDuration, ksm.ContentKeyPersisted), nil
+}
+
+func (FixedContentKey) FetchOfflineKey(assetID []byte) (*ksm.CkcOfflineKeyBlock, error) {
+	contentID := binary.LittleEndian.Uint64(assetID)
+	storageDuration := uint32(0)
+	playbackDuration := uint32(0)
+	titleID := uint64(0)
+	return ksm.NewCkcOfflineKeyBlock(contentID, storageDuration, playbackDuration, titleID), nil
 }
 
 // Random content key

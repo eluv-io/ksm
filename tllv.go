@@ -143,6 +143,51 @@ func NewCkcContentKeyDurationBlock(LeaseDuration uint32, RentalDuration uint32, 
 	}
 }
 
+type CkcOfflineKeyBlock struct {
+	*TLLVBlock
+
+	// 16-19 - version 2 (iOS 12.2 and higher)
+	// 20-23 - reserved; must set to 0
+	ContentID uint64 // 24-39 - content ID (stream ID)
+	StorageDuration uint32 // 40-43 - asset storage validity duration in seconds; 0 means no limit
+	PlaybackDuration uint32 // 40-47 - asset playback validity duration in seconds; 0 means no limit
+	TitleID uint64 // 48-63 - unique ID common to all streams; returned to the server in the Sync TLLV
+	//Reserved       uint32 // Reserved; set to a fixed value of 0x86d34a3a.
+	//Padding        []byte // Random values to fill out the TLLV to a multiple of 16 bytes.
+}
+
+func NewCkcOfflineKeyBlock(contentID uint64, storageDuration uint32,
+	playbackDuration uint32, titleID uint64) *CkcOfflineKeyBlock {
+
+	version := make([]byte, 4)
+	binary.BigEndian.PutUint32(version, 2)
+	contentIDOut := make([]byte, 8)
+	binary.BigEndian.PutUint64(contentIDOut, contentID)
+	storageDurationOut := make([]byte, 4)
+	binary.BigEndian.PutUint32(storageDurationOut, storageDuration)
+	playbackDurationOut := make([]byte, 4)
+	binary.BigEndian.PutUint32(playbackDurationOut, playbackDuration)
+	titleIDOut := make([]byte, 8)
+	binary.BigEndian.PutUint64(titleIDOut, titleID)
+
+	var value []byte
+	value = append(value, version...) // TODO use const
+	value = append(value, []byte{0x0, 0x0, 0x0, 0x0}...) // reserved; must set to 0
+	value = append(value, contentIDOut...)
+	value = append(value, storageDurationOut...)
+	value = append(value, titleIDOut...)
+
+	tllv := NewTLLVBlock(tagOfflineKey, value)
+
+	return &CkcOfflineKeyBlock{
+		TLLVBlock:        tllv,
+		ContentID:        contentID,
+		StorageDuration:  storageDuration,
+		PlaybackDuration: playbackDuration,
+		TitleID:          titleID,
+	}
+}
+
 const (
 	tagSessionKeyR1              = 0x3d1a10b8bffac2ec
 	tagSessionKeyR1Integrity     = 0xb349d4809e910687
@@ -172,6 +217,7 @@ const (
 	tagEncryptedCk        = 0x58b38165af0e3d5a
 	tagR1                 = 0xea74c4645d5efee9
 	tagContentKeyDuration = 0x47acf6a418cd091a
+	tagOfflineKey         = 0x6375d9727060218c
 	tagHdcpEnforcement    = 0x2e52f1530d8ddb4a
 
 	contentKeyValidForLease  = 0x1a4bde7e //Content key valid for lease only

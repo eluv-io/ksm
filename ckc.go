@@ -9,6 +9,7 @@ import (
 type ContentKey interface {
 	FetchContentKey(assetID []byte) ([]byte, []byte, error)
 	FetchContentKeyDuration(assetID []byte) (*CkcContentKeyDurationBlock, error)
+	FetchOfflineKey(assetID []byte) (*CkcOfflineKeyBlock, error)
 }
 
 var (
@@ -35,6 +36,14 @@ func (RandomContentKey) FetchContentKeyDuration(assetID []byte) (*CkcContentKeyD
 	RentalDuration := mathRand.Uint32() // The duration of the rental, if any, in seconds.
 
 	return NewCkcContentKeyDurationBlock(LeaseDuration, RentalDuration, ContentKeyPersisted), nil
+}
+
+func (RandomContentKey) FetchOfflineKey(assetID []byte) (*CkcOfflineKeyBlock, error) {
+	contentID := mathRand.Uint64()
+	storageDuration := mathRand.Uint32()
+	playbackDuration := mathRand.Uint32()
+	titleID := mathRand.Uint64()
+	return NewCkcOfflineKeyBlock(contentID, storageDuration, playbackDuration, titleID), nil
 }
 
 // CKCPayload is a object that store ckc payload.
