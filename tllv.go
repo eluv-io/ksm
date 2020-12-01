@@ -148,44 +148,44 @@ type CkcOfflineKeyBlock struct {
 
 	// 16-19 - version 2 (iOS 12.2 and higher)
 	// 20-23 - reserved; must set to 0
-	ContentID uint64 // 24-39 - content ID (stream ID)
+	ContentID []byte // 24-39 - content ID (stream ID)
 	StorageDuration uint32 // 40-43 - asset storage validity duration in seconds; 0 means no limit
-	PlaybackDuration uint32 // 40-47 - asset playback validity duration in seconds; 0 means no limit
-	TitleID uint64 // 48-63 - unique ID common to all streams; returned to the server in the Sync TLLV
+	PlaybackDuration uint32 // 44-47 - asset playback validity duration in seconds; 0 means no limit
+	TitleID []byte // 48-63 - unique ID common to all streams; returned to the server in the Sync TLLV
 	//Reserved       uint32 // Reserved; set to a fixed value of 0x86d34a3a.
 	//Padding        []byte // Random values to fill out the TLLV to a multiple of 16 bytes.
 }
 
-func NewCkcOfflineKeyBlock(contentID uint64, storageDuration uint32,
-	playbackDuration uint32, titleID uint64) *CkcOfflineKeyBlock {
+func NewCkcOfflineKeyBlock(contentID []byte, storageDuration uint32,
+	playbackDuration uint32, titleID []byte) *CkcOfflineKeyBlock {
 
 	version := make([]byte, 4)
 	binary.BigEndian.PutUint32(version, 2)
-	contentIDOut := make([]byte, 8)
-	binary.BigEndian.PutUint64(contentIDOut, contentID)
 	storageDurationOut := make([]byte, 4)
 	binary.BigEndian.PutUint32(storageDurationOut, storageDuration)
 	playbackDurationOut := make([]byte, 4)
 	binary.BigEndian.PutUint32(playbackDurationOut, playbackDuration)
-	titleIDOut := make([]byte, 8)
-	binary.BigEndian.PutUint64(titleIDOut, titleID)
 
 	var value []byte
 	value = append(value, version...) // TODO use const
 	value = append(value, []byte{0x0, 0x0, 0x0, 0x0}...) // reserved; must set to 0
-	value = append(value, contentIDOut...)
+	value = append(value, contentID...)
 	value = append(value, storageDurationOut...)
-	value = append(value, titleIDOut...)
+	value = append(value, playbackDurationOut...)
+	value = append(value, titleID...)
 
 	tllv := NewTLLVBlock(tagOfflineKey, value)
 
-	return &CkcOfflineKeyBlock{
+	block := &CkcOfflineKeyBlock{
 		TLLVBlock:        tllv,
-		ContentID:        contentID,
 		StorageDuration:  storageDuration,
 		PlaybackDuration: playbackDuration,
-		TitleID:          titleID,
 	}
+	block.ContentID = make([]byte, 16)
+	copy(block.ContentID, contentID)
+	block.TitleID = make([]byte, 16)
+	copy(block.TitleID, titleID)
+	return block
 }
 
 const (

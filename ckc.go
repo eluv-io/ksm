@@ -39,10 +39,14 @@ func (RandomContentKey) FetchContentKeyDuration(assetID []byte) (*CkcContentKeyD
 }
 
 func (RandomContentKey) FetchOfflineKey(assetID []byte) (*CkcOfflineKeyBlock, error) {
-	contentID := mathRand.Uint64()
-	storageDuration := mathRand.Uint32()
-	playbackDuration := mathRand.Uint32()
-	titleID := mathRand.Uint64()
+	contentID := make([]byte, 16)
+	rand.Read(contentID)
+	// Print to validate against verify_ckc output
+	// fmt.Printf("contentID: %x\n", contentID)
+	storageDuration := uint32(0) //mathRand.Uint32()
+	playbackDuration := uint32(0) //mathRand.Uint32()
+	titleID := make([]byte, 16)
+	rand.Read(titleID)
 	return NewCkcOfflineKeyBlock(contentID, storageDuration, playbackDuration, titleID), nil
 }
 

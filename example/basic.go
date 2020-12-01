@@ -3,7 +3,6 @@ package main
 import (
 	"crypto/x509"
 	"encoding/base64"
-	"encoding/binary"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -84,10 +83,11 @@ func (FixedContentKey) FetchContentKeyDuration(assetId []byte) (*ksm.CkcContentK
 }
 
 func (FixedContentKey) FetchOfflineKey(assetID []byte) (*ksm.CkcOfflineKeyBlock, error) {
-	contentID := binary.LittleEndian.Uint64(assetID)
+	contentID := make([]byte, 16)
+	copy(contentID, assetID)
 	storageDuration := uint32(0)
 	playbackDuration := uint32(0)
-	titleID := uint64(0)
+	titleID := make([]byte, 16)
 	return ksm.NewCkcOfflineKeyBlock(contentID, storageDuration, playbackDuration, titleID), nil
 }
 
